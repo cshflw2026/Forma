@@ -325,18 +325,22 @@ function aiKey(){const v=($('#gk')||{}).value;if(!v||!v.trim())return;LS.set(K+'
 function aiKeyUI(a){if(AIm)return'';
  if(gk()&&!a.keyEdit)return'<p style="margin:0 0 12px"><a href="#" onclick="fd.ai.keyEdit=true;render();return false">Promijeni Gemini ključ</a></p>';
  return'<div class="card"><b>Gemini ključ (besplatno)</b><p class="mu">1. Otvori <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> i prijavi se Google računom.<br>2. Klikni „Create API key”.<br>3. Zalijepi ključ ovdje.</p><label for="gk">Ključ</label><input id="gk" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="AIza…"><p class="mu">Ključ ostaje samo na ovom uređaju. Opisi obroka šalju se Googleu, a na besplatnoj razini ih Google može koristiti za poboljšanje svojih proizvoda.</p><button onclick="aiKey()">Spremi ključ</button></div>'}
-async function gemini(p){const key=gk();let last=0;
- for(const m of ['gemini-flash-latest','gemini-2.5-flash','gemini-2.5-flash-lite']){
-  let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{temperature:.2,responseMimeType:'application/json'}})})}catch(e){throw{msg:'Nema veze s Geminijem. Provjeri internet.'}}
-  if(!r.ok){const tx=await r.text().catch(()=>'');
-   if(r.status===429)throw{msg:'Dosegnut je besplatni limit. Pokušaj za minutu ili sutra.'};
-   if(r.status===401||r.status===403||/API key not valid|API_KEY_INVALID/i.test(tx))throw{msg:'Gemini ključ nije ispravan. Promijeni ga.'};
-   if(r.status===404||r.status===400){last=r.status;continue}
-   throw{msg:'Gemini je vratio grešku ('+r.status+').'}}
-  const j=await r.json(),pt=((((j.candidates||[])[0]||{}).content)||{}).parts||[];
+async function gemini(p){const key=gk();let last='';
+ for(const m of ['gemini-2.5-flash','gemini-flash-latest','gemini-2.5-flash-lite']){
+  const gc={temperature:.2,responseMimeType:'application/json',maxOutputTokens:2048};if(/2\.5/.test(m))gc.thinkingConfig={thinkingBudget:0};
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),20000);let r;
+  try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:gc})})}
+  catch(e){clearTimeout(to);last=m+': '+(e&&e.name==='AbortError'?'isteklo vrijeme (20 s)':'nema veze ('+(e&&e.message||e)+')');continue}
+  if(!r.ok){clearTimeout(to);const tx=await r.text().catch(()=>'');let mg=tx;try{mg=JSON.parse(tx).error.message}catch(e){}mg=String(mg).slice(0,140);
+   if(r.status===429)throw{msg:'Dosegnut je besplatni limit. Pokušaj za minutu ili sutra. ('+mg+')'};
+   if(r.status===401||r.status===403||/API key not valid|API_KEY_INVALID/i.test(tx))throw{msg:'Gemini ključ nije ispravan ili nema dozvolu: '+mg};
+   last=m+': '+r.status+' '+mg;continue}
+  let j;try{j=await r.json()}catch(e){clearTimeout(to);last=m+': neispravan odgovor';continue}clearTimeout(to);
+  const pt=((((j.candidates||[])[0]||{}).content)||{}).parts||[];
   const t=pt.map(x=>x.text||'').join('').replace(/^\s*```(?:json)?/i,'').replace(/```\s*$/,'').trim();
-  const o=JSON.parse(t);return Array.isArray(o)?o:(Object.values(o).find(Array.isArray)||[])}
- throw{msg:'Gemini model nije dostupan ('+last+'). Javi da se ažurira naziv modela.'}}
+  let o;try{o=JSON.parse(t)}catch(e){last=m+': odgovor nije JSON ('+(((j.candidates||[])[0]||{}).finishReason||(j.promptFeedback&&j.promptFeedback.blockReason)||'prazno')+')';continue}
+  return Array.isArray(o)?o:(Object.values(o).find(Array.isArray)||[])}
+ throw{msg:'Procjena nije uspjela. '+last}}
 const R1=v=>Math.round(v*10)/10,nid=()=>'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const CFL=[['n','Naziv','text'],['st','Stanje (npr. sirovo, kuhano), neobavezno','text'],['k','Kalorije na 100 (kcal)'],['p','Proteini na 100 (g)'],['c','Ugljikohidrati na 100 (g)'],['f','Masti na 100 (g)'],['pl','Naziv porcije, neobavezno','text'],['pg','Gramaža porcije, neobavezno']];
 function customF(){fd={mt:fd.mt,step:'cf',ed:null,cf:{n:'',st:'',u:'g',k:'',p:'',c:'',f:'',pl:'',pg:''}};render()}
