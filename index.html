@@ -326,7 +326,7 @@ function aiKeyUI(a){if(AIm)return'';
  if(gk()&&!a.keyEdit)return'<p style="margin:0 0 12px"><a href="#" onclick="fd.ai.keyEdit=true;render();return false">Promijeni Gemini ključ</a></p>';
  return'<div class="card"><b>Gemini ključ (besplatno)</b><p class="mu">1. Otvori <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> i prijavi se Google računom.<br>2. Klikni „Create API key”.<br>3. Zalijepi ključ ovdje.</p><label for="gk">Ključ</label><input id="gk" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="AIza…"><p class="mu">Ključ ostaje samo na ovom uređaju. Opisi obroka šalju se Googleu, a na besplatnoj razini ih Google može koristiti za poboljšanje svojih proizvoda.</p><button onclick="aiKey()">Spremi ključ</button></div>'}
 async function gemini(p){const key=gk();let last='';
- for(const m of ['gemini-2.5-flash','gemini-flash-latest','gemini-2.5-flash-lite']){
+ for(const m of ['gemini-3.5-flash','gemini-flash-latest','gemini-3.5-flash-lite']){
   const gc={temperature:.2,responseMimeType:'application/json',maxOutputTokens:2048};if(/2\.5/.test(m))gc.thinkingConfig={thinkingBudget:0};
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),20000);let r;
   try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:gc})})}
