@@ -5,3 +5,5 @@ GitHub Pages:
    On: .../forma/#on     Ona: .../forma/#ona
 4. Na mobitelu otvori link pa "Dodaj na pocetni zaslon" / "Instaliraj aplikaciju".
 Kod izmjene aplikacije: zamijeni index.html i u sw.js povecaj VER (forma-v2, ...).
+
+AI opis obroka: u aplikaciji upisi besplatni Gemini kljuc (aistudio.google.com/apikey); sprema se samo na tom uredaju.

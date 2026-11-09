@@ -304,7 +304,7 @@ function saveQ(){const k=num(fd.k);if(!(k>0&&k<=5000)){$('#qe').textContent='Upi
  dgs();const L=D.dg[dd]=D.dg[dd]||[];if(fd.ed!==null)L[fd.ed]=e;else L.push(e);save();fd=null;render();scrollTo(0,0)}
 function vAdd(){const back=`<button class="sec" onclick="backF()">← Natrag</button>`;
  if(fd.step==='ask')return vAsk(back);if(fd.step==='ov')return vOV(back);if(fd.step==='bc')return `${back}<h1 style="margin-top:16px">Skeniraj barkod</h1><video id="bv" playsinline muted style="width:100%;border-radius:12px;background:#000"></video><p id="bm" class="mu">Usmjeri kameru prema barkodu.</p>`;if(fd.step==='cf')return vCF(back);if(fd.step==='rc')return vRC(back);if(fd.step==='ai')return vAI(back);
- if(fd.step==='s')return `${back}<h1 style="margin-top:16px">${MEALS[fd.mt]}</h1><label for="fq">Pretraži hranu</label><input id="fq" type="text" autocomplete="off" enterkeyhint="search" value="${fd.q}" oninput="fq(this.value)" onkeydown="if(event.key==='Enter')submitQ()"><p></p><button onclick="submitQ()">Traži</button><div id="fm" class="err">${fd.bcm||''}</div><div id="fr">${resHtml()}</div><p></p><div class="g g2">${BD?'<button class="sec" onclick="scanF()">Skeniraj barkod</button>':''}<button class="sec" onclick="customF()">Vlastita namirnica</button><button class="sec" onclick="recipeF()">Recept</button><button class="sec" onclick="quickF()">Brzi unos</button>${AIm?'<button class="sec" onclick="aiF()">Opiši hranu (AI)</button>':''}</div>`;
+ if(fd.step==='s')return `${back}<h1 style="margin-top:16px">${MEALS[fd.mt]}</h1><label for="fq">Pretraži hranu</label><input id="fq" type="text" autocomplete="off" enterkeyhint="search" value="${fd.q}" oninput="fq(this.value)" onkeydown="if(event.key==='Enter')submitQ()"><p></p><button onclick="submitQ()">Traži</button><div id="fm" class="err">${fd.bcm||''}</div><div id="fr">${resHtml()}</div><p></p><div class="g g2">${BD?'<button class="sec" onclick="scanF()">Skeniraj barkod</button>':''}<button class="sec" onclick="customF()">Vlastita namirnica</button><button class="sec" onclick="recipeF()">Recept</button><button class="sec" onclick="quickF()">Brzi unos</button><button class="sec" onclick="aiF()">Opiši hranu (AI)</button></div>`;
  if(fd.step==='x'){const fl=[['n','Naziv (neobavezno)'],['k','Kalorije (kcal)'],['p','Proteini (g), neobavezno'],['c','Ugljikohidrati (g), neobavezno'],['f','Masti (g), neobavezno']];
   return `${back}<h1 style="margin-top:16px">Brzi unos</h1><p class="mu">Približna vrijednost; bit će označena kao približno.</p><div class="card g">${fl.map(a=>`<div><label for="x${a[0]}">${a[1]}</label><input id="x${a[0]}" type="text" inputmode="${a[0]==='n'?'text':'decimal'}" value="${fd[a[0]]}" oninput="fd.${a[0]}=this.value"></div>`).join('')}</div><div id="qe" class="err"></div><button onclick="saveQ()">${fd.ed!==null?'Spremi':'Dodaj'}</button>${fd.ed!==null?`<p></p><button class="sec" onclick="delE()">${fd.conf?'Potvrdi brisanje':'Obriši unos'}</button>`:''}`}
  const f=fd.f,fv=(D.fav||[]).includes(f.i);
@@ -318,6 +318,25 @@ function vAdd(){const back=`<button class="sec" onclick="backF()">← Natrag</bu
 /* ---- faza 5: vlastite namirnice, recepti, AI procjena ---- */
 let AIm=null;
 async function aiInit(){try{if(typeof claude==='undefined'||!claude.use)return;AIm=await claude.use('sample')||null}catch(e){AIm=null}}
+/* Gemini (besplatni kljuc, sprema se samo na ovom uredaju) */
+const gk=()=>LS.get(K+'gk')||'';
+const aiCall=p=>AIm?AIm.json(p):gemini(p);
+function aiKey(){const v=($('#gk')||{}).value;if(!v||!v.trim())return;LS.set(K+'gk',v.trim());fd.ai.keyEdit=false;fd.ai.err='';render()}
+function aiKeyUI(a){if(AIm)return'';
+ if(gk()&&!a.keyEdit)return'<p style="margin:0 0 12px"><a href="#" onclick="fd.ai.keyEdit=true;render();return false">Promijeni Gemini ključ</a></p>';
+ return'<div class="card"><b>Gemini ključ (besplatno)</b><p class="mu">1. Otvori <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> i prijavi se Google računom.<br>2. Klikni „Create API key”.<br>3. Zalijepi ključ ovdje.</p><label for="gk">Ključ</label><input id="gk" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="AIza…"><p class="mu">Ključ ostaje samo na ovom uređaju. Opisi obroka šalju se Googleu, a na besplatnoj razini ih Google može koristiti za poboljšanje svojih proizvoda.</p><button onclick="aiKey()">Spremi ključ</button></div>'}
+async function gemini(p){const key=gk();let last=0;
+ for(const m of ['gemini-flash-latest','gemini-2.5-flash','gemini-2.5-flash-lite']){
+  let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{temperature:.2,responseMimeType:'application/json'}})})}catch(e){throw{msg:'Nema veze s Geminijem. Provjeri internet.'}}
+  if(!r.ok){const tx=await r.text().catch(()=>'');
+   if(r.status===429)throw{msg:'Dosegnut je besplatni limit. Pokušaj za minutu ili sutra.'};
+   if(r.status===401||r.status===403||/API key not valid|API_KEY_INVALID/i.test(tx))throw{msg:'Gemini ključ nije ispravan. Promijeni ga.'};
+   if(r.status===404||r.status===400){last=r.status;continue}
+   throw{msg:'Gemini je vratio grešku ('+r.status+').'}}
+  const j=await r.json(),pt=((((j.candidates||[])[0]||{}).content)||{}).parts||[];
+  const t=pt.map(x=>x.text||'').join('').replace(/^\s*```(?:json)?/i,'').replace(/```\s*$/,'').trim();
+  const o=JSON.parse(t);return Array.isArray(o)?o:(Object.values(o).find(Array.isArray)||[])}
+ throw{msg:'Gemini model nije dostupan ('+last+'). Javi da se ažurira naziv modela.'}}
 const R1=v=>Math.round(v*10)/10,nid=()=>'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const CFL=[['n','Naziv','text'],['st','Stanje (npr. sirovo, kuhano), neobavezno','text'],['k','Kalorije na 100 (kcal)'],['p','Proteini na 100 (g)'],['c','Ugljikohidrati na 100 (g)'],['f','Masti na 100 (g)'],['pl','Naziv porcije, neobavezno','text'],['pg','Gramaža porcije, neobavezno']];
 function customF(){fd={mt:fd.mt,step:'cf',ed:null,cf:{n:'',st:'',u:'g',k:'',p:'',c:'',f:'',pl:'',pg:''}};render()}
@@ -365,11 +384,11 @@ function saveRC(){const r=fd.rc,w=num(r.tw),np=num(r.np),n=r.n.trim(),er=t=>{$('
  (D.cf=D.cf||[]).push(f);save();pickF(f.i)}
 /* AI procjena (samo ako je dostupna) */
 function aiF(){fd={mt:fd.mt,step:'ai',ed:null,ai:{t:'',busy:false,rows:null,err:''}};render()}
-async function aiRun(){const a=fd.ai;if(!(a.t||'').trim()){a.err='Opiši što si jeo.';render();return}a.busy=true;a.err='';a.rows=null;render();
- try{const r=await AIm.json('Procijeni hranu iz opisa (hrvatski). Opis: "'+a.t.trim().slice(0,600)+'"\nVrati ISKLJUČIVO JSON polje (bez teksta i bez oznaka), najviše 12 stavki, svaka: {"n":"naziv na hrvatskom","g":gramaža ukupno u gramima,"k":kcal za tu količinu,"p":proteini g,"c":ugljikohidrati g,"f":masti g}. Brojevi za cijelu stavku, ne na 100 g. Budi realan; ako nešto nije jasno, pretpostavi uobičajenu porciju.');
+async function aiRun(){const a=fd.ai;if(!AIm&&!gk()){a.keyEdit=true;a.err='Prvo upiši Gemini ključ.';render();return}if(!(a.t||'').trim()){a.err='Opiši što si jeo.';render();return}a.busy=true;a.err='';a.rows=null;render();
+ try{const r=await aiCall('Procijeni hranu iz opisa (hrvatski). Opis: "'+a.t.trim().slice(0,600)+'"\nVrati ISKLJUČIVO JSON polje (bez teksta i bez oznaka), najviše 12 stavki, svaka: {"n":"naziv na hrvatskom","g":gramaža ukupno u gramima,"k":kcal za tu količinu,"p":proteini g,"c":ugljikohidrati g,"f":masti g}. Brojevi za cijelu stavku, ne na 100 g. Budi realan; ako nešto nije jasno, pretpostavi uobičajenu porciju.');
   const rows=(Array.isArray(r)?r:[]).slice(0,12).map(x=>({n:String(x.n||'').slice(0,60),g:+x.g,k:+x.k,p:+x.p||0,c:+x.c||0,f:+x.f||0})).filter(x=>x.n&&x.g>0&&x.g<=5000&&x.k>=0&&x.k<=4000);
   if(!rows.length)throw 0;a.rows=rows.map(x=>({n:x.n,g:String(Math.round(x.g)),k:String(Math.round(x.k)),p:String(R1(x.p)),c:String(R1(x.c)),f:String(R1(x.f))}))}
- catch(e){a.err=e&&e.code==='not_granted'?'AI procjena nije odobrena.':'Procjena nije uspjela. Pokušaj opisati drugačije ili koristi Brzi unos.';if(e&&e.code==='not_granted')AIm=null}
+ catch(e){a.err=e&&e.msg?e.msg:e&&e.code==='not_granted'?'AI procjena nije odobrena.':'Procjena nije uspjela. Pokušaj opisati drugačije ili koristi Brzi unos.';if(e&&e.code==='not_granted')AIm=null}
  a.busy=false;render()}
 function aiS(i,k,v){fd.ai.rows[i][k]=v}
 function aiR(i){fd.ai.rows.splice(i,1);if(!fd.ai.rows.length)fd.ai.rows=null;render()}
@@ -377,7 +396,7 @@ function aiAdd(){const a=fd.ai,L=[];for(const r of a.rows){const k=num(r.k);if(!
   L.push({n:r.n.trim(),m:fd.mt,g:num(r.g)||0,ai:1,ap:1,t:{k,p:num(r.p)||0,c:num(r.c)||0,f:num(r.f)||0}})}
  dgs();(D.dg[dd]=D.dg[dd]||[]).push(...L);save();fd=null;render();scrollTo(0,0)}
 function vAI(back){const a=fd.ai;
- let h=`${back}<h1 style="margin-top:16px">Opiši hranu</h1><p class="mu">Npr. „tanjur tjestenine s bolonjezom i salata". Dobit ćeš procjenu koju možeš ispraviti.</p><div class="card"><label for="at">Opis</label><textarea id="at" oninput="fd.ai.t=this.value">${a.t}</textarea></div><div class="err">${a.err}</div><button onclick="aiRun()" ${a.busy?'disabled':''}>${a.busy?'Procjenjujem...':'Procijeni'}</button>`;
+ let h=`${back}<h1 style="margin-top:16px">Opiši hranu</h1><p class="mu">Npr. „tanjur tjestenine s bolonjezom i salata". Dobit ćeš procjenu koju možeš ispraviti.</p>${aiKeyUI(a)}<div class="card"><label for="at">Opis</label><textarea id="at" oninput="fd.ai.t=this.value">${a.t}</textarea></div><div class="err">${a.err}</div><button onclick="aiRun()" ${a.busy?'disabled':''}>${a.busy?'Procjenjujem...':'Procijeni'}</button>`;
  if(a.rows)h+=`<div class="card note"><b>Procjena, provjeri</b><p class="mu">Vrijednosti su približne. Ispravi što ne odgovara; ništa se ne sprema dok ne potvrdiš.</p></div>${a.rows.map((r,i)=>`<div class="card g"><div><label for="an${i}">Naziv</label><input id="an${i}" type="text" value="${r.n.replace(/"/g,'&quot;')}" oninput="aiS(${i},'n',this.value)"></div><div class="g g3">${[['g','g'],['k','kcal'],['p','P (g)'],['c','U (g)'],['f','M (g)']].map(b=>`<div><label for="a${b[0]}${i}">${b[1]}</label><input id="a${b[0]}${i}" type="text" inputmode="decimal" value="${r[b[0]]}" oninput="aiS(${i},'${b[0]}',this.value)"></div>`).join('')}<div><label>&nbsp;</label><button class="sec" onclick="aiR(${i})">Ukloni</button></div></div></div>`).join('')}<div id="qe" class="err"></div><button onclick="aiAdd()">Potvrdi i dodaj u dnevnik</button>`;
  return h}
 /* ---- faza 7: tjedni unos težine, trend, korekcija kalorija, kopija, potrošnja treninga ---- */
